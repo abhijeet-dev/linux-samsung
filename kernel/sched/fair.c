@@ -8815,13 +8815,13 @@ static void hmp_migrate_runnable_task(struct rq *rq)
 	 * with the source rq.
 	 */
 	if (src_rq->active_balance)
-		return;
+		goto out;
 
 	if (src_rq->nr_running <= 1)
-		return;
+		goto out;
 
 	if (task_rq(p) != src_rq)
-		return;
+		goto out;
 	/*
 	 * Not sure if this applies here but one can never
 	 * be too cautious
@@ -8857,6 +8857,8 @@ static void hmp_migrate_runnable_task(struct rq *rq)
 
 	if (pd)
 		attach_one_task(dst_rq, pd);
+out:
+	put_task_struct(p);
 }
 
 static DEFINE_SPINLOCK(hmp_force_migration);
