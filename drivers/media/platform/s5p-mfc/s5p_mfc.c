@@ -32,10 +32,17 @@
 #include "s5p_mfc_opr.h"
 #include "s5p_mfc_cmd.h"
 #include "s5p_mfc_pm.h"
+#ifdef CONFIG_EXYNOS_IOMMU
+#include <asm/dma-iommu.h>
+#endif
 
 #define S5P_MFC_NAME		"s5p-mfc"
 #define S5P_MFC_DEC_NAME	"s5p-mfc-dec"
 #define S5P_MFC_ENC_NAME	"s5p-mfc-enc"
+
+#ifdef CONFIG_EXYNOS_IOMMU
+static struct dma_iommu_mapping *mapping;
+#endif
 
 int debug;
 module_param(debug, int, S_IRUGO | S_IWUSR);
@@ -1007,6 +1014,23 @@ static void *mfc_get_drv_data(struct platform_device *pdev);
 
 static int s5p_mfc_alloc_memdevs(struct s5p_mfc_dev *dev)
 {
+#ifdef CONFIG_EXYNOS_IOMMU
+	struct device *mdev = &dev->plat_dev->dev;
+
+	mapping = arm_iommu_create_mapping(&platform_bus_type, 0x20000000,
+			SZ_256M);
+	if (mapping == NULL) {
+		mfc_err("IOMMU mapping failed\n");
+		return -EFAULT;
+	}
+	mdev->dma_parms = devm_kzalloc(&dev->plat_dev->dev,
+			sizeof(*mdev->dma_parms), GFP_KERNEL);
+	dma_set_max_seg_size(mdev, 0xffffffffu);
+	arm_iommu_attach_device(mdev, mapping);
+
+	dev->mem_dev_l = dev->mem_dev_r = mdev;
+	return 0;
+#else
 	unsigned int mem_info[2] = { };
 
 	dev->mem_dev_l = devm_kzalloc(&dev->plat_dev->dev,
@@ -1043,6 +1067,7 @@ static int s5p_mfc_alloc_memdevs(struct s5p_mfc_dev *dev)
 		return -ENOMEM;
 	}
 	return 0;
+#endif
 }
 
 /* MFC probe function */
@@ -1223,6 +1248,10 @@ err_mem_init_ctx_1:
 	vb2_dma_contig_cleanup_ctx(dev->alloc_ctx[0]);
 err_res:
 	s5p_mfc_final_pm(dev);
+#ifdef CONFIG_EXYNOS_IOMMU
+	if (mapping)
+		arm_iommu_release_mapping(mapping);
+#endif
 
 	pr_debug("%s-- with error\n", __func__);
 	return ret;
@@ -1251,6 +1280,10 @@ static int s5p_mfc_remove(struct platform_device *pdev)
 		put_device(dev->mem_dev_r);
 	}
 
+#ifdef CONFIG_EXYNOS_IOMMU
+	if (mapping)
+		arm_iommu_release_mapping(mapping);
+#endif
 	s5p_mfc_final_pm(dev);
 	return 0;
 }
