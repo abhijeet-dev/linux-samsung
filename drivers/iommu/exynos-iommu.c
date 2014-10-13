@@ -822,9 +822,9 @@ static int __init exynos_sysmmu_probe(struct platform_device *pdev)
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	data->sfrbase = devm_request_and_ioremap(dev, res);
-	if (!data->sfrbase)
-		return -EINVAL;
+	data->sfrbase = devm_ioremap_resource(dev, res);
+	if (IS_ERR(data->sfrbase))
+		return PTR_ERR(data->sfrbase);
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq <= 0) {
