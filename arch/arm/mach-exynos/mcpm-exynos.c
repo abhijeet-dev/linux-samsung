@@ -80,6 +80,9 @@ static int exynos_power_up(unsigned int cpu, unsigned int cluster)
 {
 	unsigned int cpunr = cpu + (cluster * EXYNOS5420_CPUS_PER_CLUSTER);
 
+	// Fix from Samsung to boot all 8 cores
+	pmu_raw_writel(0x1, 0x0908);
+
 	pr_debug("%s: cpu %u cluster %u\n", __func__, cpu, cluster);
 	if (cpu >= EXYNOS5420_CPUS_PER_CLUSTER ||
 		cluster >= EXYNOS5420_NR_CLUSTERS)
