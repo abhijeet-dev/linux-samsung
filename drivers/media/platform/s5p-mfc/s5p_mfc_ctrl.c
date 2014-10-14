@@ -140,9 +140,9 @@ int s5p_mfc_reset(struct s5p_mfc_dev *dev)
 	if (IS_MFCV6_PLUS(dev)) {
 		/* Reset IP */
 		/*  except RISC, reset */
-		/*mfc_write(dev, 0xFEE, S5P_FIMV_MFC_RESET_V6);*/
+		mfc_write(dev, 0xFEE, S5P_FIMV_MFC_RESET_V6);
 		/*  reset release */
-		/*mfc_write(dev, 0x0, S5P_FIMV_MFC_RESET_V6);*/
+		mfc_write(dev, 0x0, S5P_FIMV_MFC_RESET_V6);
 
 		/* Zero Initialization of MFC registers */
 		mfc_write(dev, 0, S5P_FIMV_RISC2HOST_CMD_V6);
