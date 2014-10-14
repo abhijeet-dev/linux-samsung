@@ -34,6 +34,17 @@
 
 void __iomem *pmu_base_addr;
 
+#ifdef CONFIG_MACH_ODROIDXU3
+#include <linux/delay.h>
+#include <linux/gpio.h>
+#include <linux/pm.h>
+#include <asm/io.h>
+#include <asm/cacheflush.h>
+
+/* From drivers/mmc/host/dw_mmc.c */
+extern int eMMC_HW_RESET_GPIO;
+#endif
+
 static struct map_desc exynos4_iodesc[] __initdata = {
 	{
 		.virtual	= (unsigned long)S3C_VA_SYS,
@@ -156,6 +167,16 @@ static void exynos_restart(enum reboot_mode mode, const char *cmd)
 		val = (val & 0xffff0000) | (status & 0xffff);
 	}
 
+#ifdef CONFIG_MACH_ODROIDXU3
+	local_irq_disable();
+	mdelay(100);    flush_cache_all();      outer_flush_all();      mdelay(100);
+	/* eMMC Module Hardware Reset Control */
+	/* eMMC_HW_RESET_GPIO : drivers/mmc/host/dw_mmc.c */
+	if (gpio_is_valid(eMMC_HW_RESET_GPIO)) {
+		gpio_set_value(eMMC_HW_RESET_GPIO, 0); mdelay(100);
+		gpio_set_value(eMMC_HW_RESET_GPIO, 1); mdelay(100);
+	}
+#endif
 	__raw_writel(val, addr);
 }
 

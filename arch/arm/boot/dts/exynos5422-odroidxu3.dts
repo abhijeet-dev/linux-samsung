@@ -88,6 +88,7 @@
 		vmmc-supply = <&ldo10_reg>;
 		bus-width = <8>;
 		cap-mmc-highspeed;
+		dw-mshc-hw-reset = <&gpd1 0 0>;
 	};
 
 	mmc@12220000 {

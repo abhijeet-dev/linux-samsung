@@ -110,6 +110,13 @@ config SOC_EXYNOS5440
 	help
 	  Enable EXYNOS5440 SoC support
 
+config MACH_ODROIDXU3
+	bool "Odroid XU3"
+	default n
+	depends on SOC_EXYNOS5420
+	help
+	  Enable Odroid XU3 specific functions
+
 config SOC_EXYNOS5800
 	bool "SAMSUNG EXYNOS5800"
 	default y
