@@ -1008,36 +1008,6 @@ static void *gsc_get_drv_data(struct platform_device *pdev)
 	return driver_data;
 }
 
-static void gsc_clk_put(struct gsc_dev *gsc)
-{
-	if (!IS_ERR(gsc->clock))
-		clk_unprepare(gsc->clock);
-}
-
-static int gsc_clk_get(struct gsc_dev *gsc)
-{
-	int ret;
-
-	dev_dbg(&gsc->pdev->dev, "gsc_clk_get Called\n");
-
-	gsc->clock = devm_clk_get(&gsc->pdev->dev, GSC_CLOCK_GATE_NAME);
-	if (IS_ERR(gsc->clock)) {
-		dev_err(&gsc->pdev->dev, "failed to get clock~~~: %s\n",
-			GSC_CLOCK_GATE_NAME);
-		return PTR_ERR(gsc->clock);
-	}
-
-	ret = clk_prepare(gsc->clock);
-	if (ret < 0) {
-		dev_err(&gsc->pdev->dev, "clock prepare failed for clock: %s\n",
-			GSC_CLOCK_GATE_NAME);
-		gsc->clock = ERR_PTR(-EINVAL);
-		return ret;
-	}
-
-	return 0;
-}
-
 static int gsc_m2m_suspend(struct gsc_dev *gsc)
 {
 	unsigned long flags;
@@ -1147,7 +1117,6 @@ static int gsc_probe(struct platform_device *pdev)
 	init_waitqueue_head(&gsc->irq_queue);
 	spin_lock_init(&gsc->slock);
 	mutex_init(&gsc->lock);
-	gsc->clock = ERR_PTR(-EINVAL);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	gsc->regs = devm_ioremap_resource(dev, res);
@@ -1160,9 +1129,19 @@ static int gsc_probe(struct platform_device *pdev)
 		return -ENXIO;
 	}
 
-	ret = gsc_clk_get(gsc);
-	if (ret)
+	gsc->clock = devm_clk_get(dev, GSC_CLOCK_GATE_NAME);
+	if (IS_ERR(gsc->clock)) {
+		dev_err(dev, "failed to get clock~~~: %s\n",
+			GSC_CLOCK_GATE_NAME);
+		return PTR_ERR(gsc->clock);
+	}
+
+	ret = clk_prepare(gsc->clock);
+	if (ret) {
+		dev_err(&gsc->pdev->dev, "clock prepare failed for clock: %s\n",
+			GSC_CLOCK_GATE_NAME);
 		return ret;
+	}
 
 	if (gsc_iommu_init(gsc, pdev)) {
 		dev_err(&pdev->dev, "IOMMU Initialization failed\n");
@@ -1209,7 +1188,7 @@ err_v4l2:
 	v4l2_device_unregister(&gsc->v4l2_dev);
 err_clk:
 	gsc_iommu_deinit(gsc);
-	gsc_clk_put(gsc);
+	clk_unprepare(gsc->clock);
 	return ret;
 }
 
@@ -1222,7 +1201,7 @@ static int gsc_remove(struct platform_device *pdev)
 
 	vb2_dma_contig_cleanup_ctx(gsc->alloc_ctx);
 	pm_runtime_disable(&pdev->dev);
-	gsc_clk_put(gsc);
+	clk_unprepare(gsc->clock);
 	gsc_iommu_deinit(gsc);
 
 	dev_dbg(&pdev->dev, "%s driver unloaded\n", pdev->name);
