@@ -691,6 +691,20 @@ void init_task_runnable_average(struct task_struct *p)
 	p->se.avg.runnable_avg_sum = slice;
 	p->se.avg.runnable_avg_period = slice;
 	__update_task_entity_contrib(&p->se);
+#ifdef CONFIG_SCHED_HMP
+	/* keep LOAD_AVG_MAX in sync with fair.c if load avg series is changed */
+#define LOAD_AVG_MAX 47742
+	if (p->mm) {
+		p->se.avg.hmp_last_up_migration = 0;
+		p->se.avg.hmp_last_down_migration = 0;
+		p->se.avg.load_avg_ratio = 1023;
+		p->se.avg.load_avg_contrib =
+			(1023 * scale_load_down(p->se.load.weight));
+		p->se.avg.runnable_avg_period = LOAD_AVG_MAX;
+		p->se.avg.runnable_avg_sum = LOAD_AVG_MAX;
+		p->se.avg.usage_avg_sum = LOAD_AVG_MAX;
+	}
+#endif
 }
 #else
 void init_task_runnable_average(struct task_struct *p)
@@ -5180,6 +5194,28 @@ select_task_rq_fair(struct task_struct *p, int prev_cpu, int sd_flag, int wake_f
 
 	if (affine_sd && cpu != prev_cpu && wake_affine(affine_sd, p, sync))
 		prev_cpu = cpu;
+
+#ifdef CONFIG_SCHED_HMP
+	/* always put non-kernel forking tasks on a big domain */
+	if (p->mm && (sd_flag & SD_BALANCE_FORK)) {
+		if(hmp_cpu_is_fastest(prev_cpu)) {
+			struct hmp_domain *hmpdom = list_entry(&hmp_cpu_domain(prev_cpu)->hmp_domains, struct hmp_domain, hmp_domains);
+			__always_unused int lowest_ratio = hmp_domain_min_load(hmpdom, &new_cpu);
+			if(new_cpu != NR_CPUS && cpumask_test_cpu(new_cpu,tsk_cpus_allowed(p)))
+				return new_cpu;
+			else {
+				new_cpu = cpumask_any_and(&hmp_faster_domain(cpu)->cpus,
+						tsk_cpus_allowed(p));
+				if(new_cpu < nr_cpu_ids)
+					return new_cpu;
+			}
+		} else {
+			new_cpu = hmp_select_faster_cpu(p, prev_cpu);
+			if (new_cpu != NR_CPUS)
+				return new_cpu;
+		}
+	}
+#endif
 
 	if (sd_flag & SD_BALANCE_WAKE) {
 		new_cpu = select_idle_sibling(p, prev_cpu);
