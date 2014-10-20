@@ -457,6 +457,9 @@
 
 	odroid_fan {
 		compatible = "pwm-fan";
+		status = "okay";
+		pwms = <&sec_pwm 0 10000 0>;
+
 		pinctrl-names = "default";
 		pinctrl-0 = <&pwm0_out>;
 
