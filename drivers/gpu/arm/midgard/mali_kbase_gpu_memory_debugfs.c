@@ -79,6 +79,7 @@ static const struct file_operations kbasep_gpu_memory_debugfs_fops = {
  */
 mali_error kbasep_gpu_memory_debugfs_init(kbase_device *kbdev)
 {
+#ifdef CONFIG_DEBUG_FS
 	kbdev->gpu_memory_dentry = debugfs_create_file("gpu_memory", \
 					S_IRUGO, \
 					kbdev->mali_debugfs_directory, \
@@ -86,7 +87,7 @@ mali_error kbasep_gpu_memory_debugfs_init(kbase_device *kbdev)
 					&kbasep_gpu_memory_debugfs_fops);
 	if (IS_ERR(kbdev->gpu_memory_dentry))
 		return MALI_ERROR_FUNCTION_FAILED;
-
+#endif
 	return MALI_ERROR_NONE;
 }
 
@@ -95,6 +96,8 @@ mali_error kbasep_gpu_memory_debugfs_init(kbase_device *kbdev)
  */
 void kbasep_gpu_memory_debugfs_term(kbase_device *kbdev)
 {
+#ifdef CONFIG_DEBUG_FS
 	debugfs_remove(kbdev->gpu_memory_dentry);
+#endif
 }
 
