@@ -2742,7 +2742,6 @@ static inline void update_entity_load_avg(struct sched_entity *se,
 
 	if (se->on_rq) {
 		cfs_rq->runnable_load_avg += contrib_delta;
-		rq_of(cfs_rq)->avg.load_avg_ratio += ratio_delta;
 	} else {
 		subtract_blocked_load_contrib(cfs_rq, -contrib_delta);
 	}
@@ -2820,7 +2819,6 @@ static inline void enqueue_entity_load_avg(struct cfs_rq *cfs_rq,
 	}
 
 	cfs_rq->runnable_load_avg += se->avg.load_avg_contrib;
-	rq_of(cfs_rq)->avg.load_avg_ratio += se->avg.load_avg_ratio;
 
 	/* we force update consideration on load-balancer moves */
 	update_cfs_rq_blocked_load(cfs_rq, !wakeup);
@@ -2840,7 +2838,6 @@ static inline void dequeue_entity_load_avg(struct cfs_rq *cfs_rq,
 	update_cfs_rq_blocked_load(cfs_rq, !sleep);
 
 	cfs_rq->runnable_load_avg -= se->avg.load_avg_contrib;
-	rq_of(cfs_rq)->avg.load_avg_ratio -= se->avg.load_avg_ratio;
 
 	if (sleep) {
 		cfs_rq->blocked_load_avg += se->avg.load_avg_contrib;
@@ -5716,6 +5713,7 @@ migrate_task_rq_fair(struct task_struct *p, int next_cpu)
 		 * and decay_counter will be out of date for that CPU
 		 * and we will not decay load correctly.
 		 */
+#ifdef CONFIG_FAIR_GROUP_SCHED
 		if (!se->on_rq && nohz_test_cpu(task_cpu(p))) {
 			struct rq *rq = cpu_rq(task_cpu(p));
 			unsigned long flags;
@@ -5729,6 +5727,7 @@ migrate_task_rq_fair(struct task_struct *p, int next_cpu)
 			update_cfs_rq_blocked_load(cfs_rq, 0);
 			raw_spin_unlock_irqrestore(&rq->lock, flags);
 		}
+#endif
 		se->avg.decay_count = -__synchronize_entity_decay(se);
 		atomic_long_add(se->avg.load_avg_contrib,
 						&cfs_rq->removed_load);
